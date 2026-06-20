@@ -1,0 +1,354 @@
+================================================================================
+          Claim vs Opinion: A Statistical Analysis of User Engagement
+                         on TikTok Video Content
+================================================================================
+
+1. INTRODUCTION AND PROBLEM STATEMENT
+--------------------------------------------------------------------------------
+
+Short-form video platforms such as TikTok have become major channels for
+information dissemination, hosting both factual claims and personal opinions.
+Understanding whether content type influences user engagement is critical for
+platform governance and misinformation research. This study addresses the
+following core question:
+
+    "Does content type (claim vs. opinion) predict user engagement on TikTok?"
+
+We employ two complementary statistical methods — probability distribution
+fitting via Maximum Likelihood Estimation (MLE) and hypothesis testing — to
+systematically quantify the engagement difference between claim and opinion
+videos. Additionally, Bayesian conditional probability analysis and logistic
+regression are conducted as supplementary investigations.
+
+The dataset used is the TikTok Video Dataset (sourced from Kaggle), containing
+19,382 records with 12 variables. After removing 298 rows with missing values
+in the numerical engagement fields, 19,084 valid observations remain, split
+approximately equally between claim (9,608; 50.3%) and opinion (9,476; 49.7%)
+videos.
+
+
+2. DATA OVERVIEW AND DESCRIPTIVE STATISTICS
+--------------------------------------------------------------------------------
+
+2.1 Variable Description
+
+The dataset includes five numerical user-engagement indicators:
+  - video_view_count    (number of views)
+  - video_like_count    (number of likes)
+  - video_share_count   (number of shares)
+  - video_download_count(number of downloads)
+  - video_comment_count (number of comments)
+
+And three categorical variables:
+  - claim_status:       "claim" or "opinion"
+  - verified_status:    whether the author is verified
+  - author_ban_status:  "active", "banned", or "under review"
+
+2.2 Descriptive Statistics
+
+Table 1 summarizes the engagement metrics for both groups. The data reveal
+stark differences: claim videos receive approximately 100x more views,
+150x more likes, and 200x more comments on average compared to opinion videos.
+
+Table 1. Descriptive Statistics by Content Type
+─────────────────────────────────────────────────────────────────────────────
+Variable              Claim (mean±sd)         Opinion (mean±sd)       Ratio
+─────────────────────────────────────────────────────────────────────────────
+video_view_count      501,029 ± 291,349       4,956 ± 2,886           101x
+video_like_count      166,373 ± 147,623       1,093 ± 964             152x
+video_share_count      33,026 ± 38,782          217 ± 252             152x
+video_download_count    2,071 ± 2,424             14 ± 16              148x
+video_comment_count       691 ± 1,017               3 ± 4              230x
+─────────────────────────────────────────────────────────────────────────────
+
+All five variables exhibit strong right skewness (skewness ranging from 0.96
+to 2.75), which motivates the use of logarithmic transformation and
+log-normal distribution modeling in subsequent analysis. The boxplots
+(Figure 1) and histograms (Figure 2) confirm the substantial separation
+between the two groups across all engagement dimensions.
+
+
+3. METHOD 1: PROBABILITY DISTRIBUTION FITTING VIA MLE
+--------------------------------------------------------------------------------
+
+3.1 Distribution Selection
+
+Given the non-negative, right-skewed nature of engagement count data, the
+log-normal distribution is a natural candidate. If X follows a log-normal
+distribution, i.e., X ~ LogNormal(μ, σ²), then Y = ln(X) follows a normal
+distribution Y ~ N(μ, σ²).
+
+The probability density function is:
+
+    f(x; μ, σ) = 1/(x·σ·√(2π)) · exp{ -[ln(x) - μ]² / (2σ²) },  x > 0
+
+3.2 MLE Derivation for the Log-Normal Distribution
+
+Given a random sample x₁, x₂, ..., xₙ from LogNormal(μ, σ²), we define
+yᵢ = ln(xᵢ), so that yᵢ ~ N(μ, σ²).
+
+The log-likelihood function is:
+
+    ℓ(μ, σ²) = -(n/2)·ln(2π) - (n/2)·ln(σ²) - (1/2σ²)·Σᵢ(yᵢ - μ)²
+
+Taking the partial derivative with respect to μ and setting it to zero:
+
+    ∂ℓ/∂μ = (1/σ²)·Σᵢ(yᵢ - μ) = 0
+
+Solving yields the MLE for μ:
+
+    μ̂ = (1/n)·Σᵢ ln(xᵢ)
+
+This is simply the sample mean of the log-transformed data.
+
+Taking the partial derivative with respect to σ² and setting it to zero:
+
+    ∂ℓ/∂(σ²) = -n/(2σ²) + (1/2σ⁴)·Σᵢ(yᵢ - μ)² = 0
+
+Solving yields the MLE for σ²:
+
+    σ̂² = (1/n)·Σᵢ [ln(xᵢ) - μ̂]²
+
+This is the sample variance of the log-transformed data (using denominator n
+rather than n−1, consistent with the MLE framework).
+
+3.3 Parameter Estimation Results
+
+We apply the above MLE formulas to video_view_count for both groups, and
+verify the analytical solutions numerically via the Nelder-Mead optimization
+of the negative log-likelihood. The results agree to four decimal places.
+
+Table 2. MLE Parameter Estimates for Log-Normal Distribution of View Count
+─────────────────────────────────────────────────────────────────────────────
+Group      n        μ̂         σ̂        E[X]=exp(μ̂+σ̂²/2)   Actual Mean
+─────────────────────────────────────────────────────────────────────────────
+Claim     9,608   12.814     0.994        602,099              501,029
+Opinion   9,476    8.199     0.985          5,909                4,956
+─────────────────────────────────────────────────────────────────────────────
+
+The MLE-estimated expected values (602,099 for claim and 5,909 for opinion)
+align reasonably with the sample means, with the moderate discrepancy due to
+the influence of extreme values on the log-normal mean formula.
+
+Table 3. MLE Estimates for All Engagement Metrics (Claim Group)
+────────────────────────────────────────────────────────────────
+Variable               μ̂          σ̂
+────────────────────────────────────────────────────────────────
+video_view_count      12.814       0.994
+video_like_count      11.400       1.409
+video_share_count      9.484       1.713
+video_download_count   6.734       1.685
+video_comment_count    5.395       1.852
+────────────────────────────────────────────────────────────────
+
+Table 4. MLE Estimates for All Engagement Metrics (Opinion Group)
+────────────────────────────────────────────────────────────────
+Variable               μ̂          σ̂
+────────────────────────────────────────────────────────────────
+video_view_count       8.199       0.985
+video_like_count       6.383       1.400
+video_share_count      4.535       1.585
+video_download_count   2.106       1.202
+video_comment_count    0.991       0.905
+────────────────────────────────────────────────────────────────
+
+For every engagement metric, the claim group's μ̂ is substantially larger
+than the opinion group's, while the σ̂ values are comparable. This indicates
+that claim videos occupy a systematically higher engagement regime, not merely
+a more variable one.
+
+3.4 Goodness-of-Fit Assessment
+
+Q-Q plots (Figure 3) show that the log-transformed view counts approximate
+a straight line against theoretical normal quantiles, supporting the
+log-normal assumption. However, the Shapiro-Wilk test rejects normality
+(W ≈ 0.83, p < 10⁻⁵⁸) for both groups. This is expected given the very
+large sample sizes (n > 9,000), where even minor deviations from normality
+become statistically significant. Practically, the log-normal model provides
+a reasonable and interpretable approximation.
+
+
+4. METHOD 2: HYPOTHESIS TESTING
+--------------------------------------------------------------------------------
+
+4.1 Test Design
+
+We test whether the engagement distributions of claim and opinion videos
+differ significantly. Two complementary tests are employed:
+
+  (a) Mann-Whitney U test (non-parametric): Tests whether the two groups
+      have the same distribution, without assuming normality.
+
+  (b) Two-sample t-test on log-transformed data: Tests whether the means
+      of log(view_count) differ between groups, assuming approximate
+      normality after transformation.
+
+For both tests:
+  H₀: The engagement distribution (or log-mean) is the same for claim
+      and opinion videos.
+  H₁: The distributions (or log-means) differ.
+  Significance level: α = 0.05
+
+4.2 Results for video_view_count
+
+Table 5. Hypothesis Test Results for View Count
+─────────────────────────────────────────────────────────────────────────────
+Test                    Statistic          p-value        Conclusion
+─────────────────────────────────────────────────────────────────────────────
+Mann-Whitney U          U = 90,639,870     p ≈ 0          Reject H₀
+Two-sample t (log)      t = 322.02         p ≈ 0          Reject H₀
+─────────────────────────────────────────────────────────────────────────────
+
+Levene's test for equality of variances on the log-transformed data yields
+W = 0.050, p = 0.822, supporting the assumption of equal variances. The
+Student t-test (rather than Welch's) is therefore appropriate.
+
+Both tests decisively reject the null hypothesis. The effect size,
+measured by Cohen's d on the log scale, is d = 4.66 — an extremely large
+effect by conventional standards (d > 0.8 is considered "large").
+
+4.3 Comprehensive Test Results Across All Metrics
+
+Table 6. Hypothesis Tests for All Engagement Variables
+─────────────────────────────────────────────────────────────────────────────
+Variable             Mann-Whitney p    t-test p      Cohen's d    Significance
+─────────────────────────────────────────────────────────────────────────────
+video_view_count         ≈ 0             ≈ 0           4.662        ***
+video_like_count         ≈ 0             ≈ 0           3.572        ***
+video_share_count        ≈ 0             ≈ 0           2.997        ***
+video_download_count     ≈ 0             ≈ 0           3.132        ***
+video_comment_count      ≈ 0             ≈ 0           2.839        ***
+─────────────────────────────────────────────────────────────────────────────
+*** p < 0.001
+
+Every engagement metric shows a statistically significant difference between
+claim and opinion videos, with all Cohen's d values exceeding 2.8 (very large
+effects). The effect is strongest for view count (d = 4.66) and weakest for
+comment count (d = 2.84), though even the latter far exceeds conventional
+thresholds for practical significance.
+
+4.4 Interpretation
+
+The hypothesis tests provide overwhelming evidence that claim videos attract
+substantially higher user engagement than opinion videos across all measured
+dimensions. The consistency of results across both parametric and
+non-parametric tests strengthens the robustness of this conclusion.
+
+
+5. SUPPLEMENTARY ANALYSIS: BAYESIAN CONDITIONAL PROBABILITIES
+--------------------------------------------------------------------------------
+
+5.1 Motivation
+
+The dataset includes author_ban_status (active / banned / under review),
+which allows us to examine the relationship between content type and account
+standing using Bayesian reasoning.
+
+5.2 Conditional Probability Computation
+
+From the data, we compute:
+
+    P(claim | active)        = 0.4268    (n = 15,383)
+    P(claim | banned)        = 0.8801    (n = 1,635)
+    P(claim | under review)  = 0.7759    (n = 2,066)
+
+Banned accounts are more than twice as likely to produce claim content
+compared to active accounts. Using Bayes' theorem, we can reverse the
+conditioning:
+
+    P(active | claim)        = 0.6834
+    P(banned | claim)        = 0.1498
+    P(under review | claim)  = 0.1668
+
+5.3 Chi-Square Test of Independence
+
+A chi-square test on the claim_status × author_ban_status contingency table
+yields χ² = 1902.59, df = 2, p ≈ 0. The strong association suggests that
+claim content is disproportionately linked to accounts with adverse standing
+(banned or under review).
+
+5.4 Verified Status Analysis
+
+Similarly, verification status shows a strong association:
+
+    P(claim | not verified)  = 0.5256    (n = 17,884)
+    P(claim | verified)      = 0.1742    (n = 1,200)
+
+Verified users are far less likely to post claim-type content, consistent
+with the interpretation that claims may carry higher misinformation risk.
+
+
+6. SUPPLEMENTARY ANALYSIS: LOGISTIC REGRESSION
+--------------------------------------------------------------------------------
+
+6.1 Model Specification
+
+A logistic regression model is trained to predict claim_status from the five
+engagement metrics plus video_duration, using an 80/20 train-test split
+(n_train = 15,267; n_test = 3,817). Features are standardized before fitting.
+
+6.2 Results
+
+Table 7. Logistic Regression Coefficients (Standardized)
+────────────────────────────────────────────────────────────────
+Feature                Coefficient (β)
+────────────────────────────────────────────────────────────────
+video_view_count          18.316
+video_like_count           8.718
+video_share_count          6.865
+video_download_count       6.290
+video_comment_count        5.330
+video_duration_sec         0.033
+intercept                 25.468
+────────────────────────────────────────────────────────────────
+
+View count has by far the largest coefficient, confirming it as the
+dominant predictor. The model achieves 98.3% accuracy on the test set,
+with precision and recall both at 0.97–1.00 for both classes.
+
+Table 8. Confusion Matrix (Test Set)
+────────────────────────────────────────────────
+                  Predicted
+                  Opinion    Claim
+Actual  Opinion    1,889        0
+        Claim          28    1,900
+────────────────────────────────────────────────
+
+The near-perfect classification demonstrates that engagement patterns alone
+are almost entirely sufficient to distinguish claim from opinion content.
+
+
+7. CONCLUSION
+--------------------------------------------------------------------------------
+
+This study investigated whether content type (claim vs. opinion) predicts
+user engagement on TikTok, using a dataset of 19,084 videos. The findings
+are unambiguous:
+
+(1) Distribution Fitting: Video engagement metrics follow a log-normal
+    distribution. MLE estimation reveals that claim videos have log-means
+    (μ̂) approximately 4.6 units higher than opinion videos for view count,
+    corresponding to a roughly 100-fold difference in the original scale.
+
+(2) Hypothesis Testing: Both the Mann-Whitney U test and the two-sample
+    t-test (on log-transformed data) decisively reject the null hypothesis
+    of equal engagement (p ≈ 0 for all five metrics). Effect sizes are
+    extremely large (Cohen's d > 2.8 for all variables).
+
+(3) Bayesian Analysis: Claim content is strongly associated with banned
+    accounts (P(claim|banned) = 0.88 vs. P(claim|active) = 0.43) and
+    unverified users (P(claim|not verified) = 0.53 vs. P(claim|verified)
+    = 0.17).
+
+(4) Predictive Modeling: A simple logistic regression using only engagement
+    features achieves 98.3% accuracy in classifying content type.
+
+In conclusion, claim videos attract dramatically higher user engagement than
+opinion videos across all measured dimensions. This finding has implications
+for platform recommendation algorithms and content moderation policies, as
+the incentive structure may disproportionately reward claim-type content —
+including potential misinformation — with greater visibility.
+
+================================================================================
+                              END OF REPORT
+================================================================================
